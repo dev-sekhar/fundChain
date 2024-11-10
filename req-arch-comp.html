@@ -12,7 +12,7 @@
         <h1 id="projectName">Requirements Tracker</h1>
     </div>
     <div class="table-container">
-        <table class="requirements-table">
+        <table id="requirementsTable" class="requirements-table">
             <thead>
                 <tr>
                     <th class="requirement-col">ID</th>
@@ -32,6 +32,13 @@
             <tbody id="requirementsTableBody"></tbody>
         </table>
     </div>
+    <script src="column-widths.js"></script>
     <script src="req-arch-comp.js"></script>
+    <script>
+        // Initialize column width manager after page load
+        window.addEventListener('load', () => {
+            new ColumnWidthManager('requirementsTable');
+        });
+    </script>
 </body>
 </html>
