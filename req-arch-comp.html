@@ -36,20 +36,56 @@
             text-align: center;
             padding: 20px;
         }
-        .complete {
-            color: #197A24;
+        .bubble {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-left: 5px;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.3);
+            vertical-align: middle;
         }
-        .incomplete {
-            color: black;
+        .status-bubble {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-text {
+            display: inline-block;
+            vertical-align: middle;
         }
     </style>
     <script>
+        function getTomorrowDate() {
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            return tomorrow.toISOString().split('T')[0];
+        }
+
+        function isValidTargetDate(date) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const targetDate = new Date(date);
+            return targetDate >= today;
+        }
+
+        function isValidActualDate(date) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const actualDate = new Date(date);
+            return actualDate <= today && actualDate >= today;
+        }
+
         async function loadRequirements() {
             const response = await fetch('req-arch-comp.json');
             const data = await response.json();
             const tableBody = document.getElementById('requirementsTableBody');
 
             document.getElementById('projectName').textContent = `${data.projectName}: Requirements Tracker`;
+
+            const tomorrow = getTomorrowDate();
 
             data.steps.forEach((group, groupIndex) => {
                 group.requirements.forEach((req, reqIndex) => {
@@ -65,107 +101,209 @@
                             <td rowspan="${componentCount}" class="requirement">${details}</td>
                             <td rowspan="${componentCount}" class="architecture-layer">${group.title}</td>
                             <td>${req.components[0]}</td>
-                            <td><input type="checkbox" class="coding" onchange="updateCompletion(this, '${req.components[0]}')" /></td>
-                            <td><input type="checkbox" class="testing" onchange="updateCompletion(this, '${req.components[0]}')" /></td>
-                            <td><input type="checkbox" class="deployment" onchange="updateCompletion(this, '${req.components[0]}')" /></td>
-                            <td class="completion incomplete">Incomplete</td>
+                            <td><input type="checkbox" class="coding" data-component="${req.components[0]}" /></td>
+                            <td><input type="checkbox" class="testing" data-component="${req.components[0]}" disabled /></td>
+                            <td><input type="checkbox" class="deployment" data-component="${req.components[0]}" disabled /></td>
+                            <td><span class="bubble"></span></td>
+                            <td><span class="status-bubble"></span><span class="status-text">Pending</span></td>
+                            <td><input type="date" class="target-date" value="${tomorrow}" min="${tomorrow}" /></td>
+                            <td><input type="date" class="actual-date" value="" max="${new Date().toISOString().split('T')[0]}" /></td>
                         `;
                         tableBody.appendChild(mainRow);
+
+                        addEventListeners(mainRow, req.components[0]);
 
                         req.components.slice(1).forEach(component => {
                             const componentRow = document.createElement('tr');
                             componentRow.innerHTML = `
                                 <td>${component}</td>
-                                <td><input type="checkbox" class="coding" onchange="updateCompletion(this, '${component}')" /></td>
-                                <td><input type="checkbox" class="testing" onchange="updateCompletion(this, '${component}')" /></td>
-                                <td><input type="checkbox" class="deployment" onchange="updateCompletion(this, '${component}')" /></td>
-                                <td class="completion incomplete">Incomplete</td>
+                                <td><input type="checkbox" class="coding" data-component="${component}" /></td>
+                                <td><input type="checkbox" class="testing" data-component="${component}" disabled /></td>
+                                <td><input type="checkbox" class="deployment" data-component="${component}" disabled /></td>
+                                <td><span class="bubble"></span></td>
+                                <td><span class="status-bubble"></span><span class="status-text">Pending</span></td>
+                                <td><input type="date" class="target-date" value="${tomorrow}" min="${tomorrow}" /></td>
+                                <td><input type="date" class="actual-date" value="" max="${new Date().toISOString().split('T')[0]}" /></td>
                             `;
                             tableBody.appendChild(componentRow);
+
+                            addEventListeners(componentRow, component);
                         });
                     }
                 });
             });
 
-            loadCheckboxStates();
+            loadComponentStates();
         }
 
-        function updateCompletion(checkbox, component) {
-            const row = checkbox.closest('tr');
+        function addEventListeners(row, component) {
             const codingCheckbox = row.querySelector('.coding');
             const testingCheckbox = row.querySelector('.testing');
             const deploymentCheckbox = row.querySelector('.deployment');
-            const completionCell = row.querySelector('.completion');
+
+            // Add event listener for coding checkbox
+            codingCheckbox.addEventListener('change', () => {
+                testingCheckbox.disabled = !codingCheckbox.checked;
+                if (!codingCheckbox.checked) {
+                    testingCheckbox.checked = false;
+                    deploymentCheckbox.checked = false;
+                    deploymentCheckbox.disabled = true;
+                }
+                updateStatus(row);
+                saveComponentState(component);
+            });
+
+            // Add event listener for testing checkbox
+            testingCheckbox.addEventListener('change', () => {
+                deploymentCheckbox.disabled = !testingCheckbox.checked;
+                if (!testingCheckbox.checked) {
+                    deploymentCheckbox.checked = false;
+                }
+                updateStatus(row);
+                saveComponentState(component);
+            });
+
+            // Add event listener for deployment checkbox
+            deploymentCheckbox.addEventListener('change', () => {
+                updateStatus(row);
+                saveComponentState(component);
+            });
+
+            // Initialize status
+            updateStatus(row);
+
+            // Date listeners remain the same
+            const targetDateInput = row.querySelector('.target-date');
+            const actualDateInput = row.querySelector('.actual-date');
+
+            if (targetDateInput) {
+                targetDateInput.addEventListener('change', (e) => {
+                    if (!isValidTargetDate(e.target.value)) {
+                        e.target.value = getTomorrowDate();
+                    }
+                    saveComponentState(component);
+                });
+            }
+
+            if (actualDateInput) {
+                actualDateInput.addEventListener('change', (e) => {
+                    const today = new Date().toISOString().split('T')[0];
+                    if (e.target.value && !isValidActualDate(e.target.value)) {
+                        e.target.value = today;
+                    }
+                    saveComponentState(component);
+                });
+            }
+        }
+
+        function updateStatus(row) {
+            const codingCheckbox = row.querySelector('.coding');
+            const testingCheckbox = row.querySelector('.testing');
+            const deploymentCheckbox = row.querySelector('.deployment');
+            const statusText = row.querySelector('.status-text');
+            const statusBubble = row.querySelector('.status-bubble');
+
+            let status = 'Pending';
+            let bubbleColor = '#646262';
+
+            if (codingCheckbox.checked || testingCheckbox.checked || deploymentCheckbox.checked) {
+                status = 'In-Progress';
+                bubbleColor = '#FE9900';
+            }
 
             if (codingCheckbox.checked && testingCheckbox.checked && deploymentCheckbox.checked) {
-                completionCell.textContent = 'Complete';
-                completionCell.classList.remove('incomplete');
-                completionCell.classList.add('complete');
-                row.style.color = '#197A24';
-            } else {
-                completionCell.textContent = 'Incomplete';
-                completionCell.classList.remove('complete');
-                completionCell.classList.add('incomplete');
-                row.style.color = '';
+                status = 'Completed';
+                bubbleColor = '#4DFF07';
             }
 
-            saveCheckboxStates(component, codingCheckbox.checked, testingCheckbox.checked, deploymentCheckbox.checked);
-            updateArchitectureLayer(row);
+            statusText.textContent = status;
+            statusBubble.style.backgroundColor = bubbleColor;
         }
 
-        function updateArchitectureLayer(componentRow) {
-            const architectureLayerCell = componentRow.querySelector('td:nth-child(4)');
-            const allComponentsComplete = Array.from(componentRow.parentNode.querySelectorAll('tr'))
-                .every(row => row.querySelector('.completion')?.textContent === 'Complete');
+        function saveComponentState(component) {
+            const checkbox = document.querySelector(`input[type="checkbox"][data-component="${component}"]`);
+            if (!checkbox) return;
 
-            if (allComponentsComplete) {
-                architectureLayerCell.style.color = '#197A24';
-            } else {
-                architectureLayerCell.style.color = '';
-            }
+            const row = checkbox.closest('tr');
+            if (!row) return;
 
-            updateRequirement(componentRow);
-        }
+            const coding = row.querySelector('.coding').checked;
+            const testing = row.querySelector('.testing').checked;
+            const deployment = row.querySelector('.deployment').checked;
+            const status = row.querySelector('.status-text').textContent;
+            const targetDate = row.querySelector('.target-date').value;
+            const actualDate = row.querySelector('.actual-date').value;
 
-        function updateRequirement(componentRow) {
-            const requirementCells = componentRow.parentNode.querySelectorAll('.requirement');
-            const allLayersComplete = Array.from(componentRow.parentNode.querySelectorAll('.architecture-layer'))
-                .every(cell => cell.style.color === 'rgb(25, 122, 36)');
-
-            if (allLayersComplete) {
-                requirementCells.forEach(cell => cell.style.color = '#197A24');
-            } else {
-                requirementCells.forEach(cell => cell.style.color = '');
-            }
-        }
-
-        function saveCheckboxStates(component, coding, testing, deployment) {
-            const states = {
+            const state = {
                 coding,
                 testing,
-                deployment
+                deployment,
+                status,
+                targetDate,
+                actualDate
             };
-            localStorage.setItem(component, JSON.stringify(states));
+
+            localStorage.setItem(component, JSON.stringify(state));
         }
 
-        function loadCheckboxStates() {
-            const rows = document.querySelectorAll('tr');
-            rows.forEach(row => {
-                const componentCell = row.querySelector('td:nth-child(5)');
-                if (componentCell) {
-                    const component = componentCell.textContent;
-                    const states = JSON.parse(localStorage.getItem(component));
+        function loadComponentStates() {
+            const checkboxes = document.querySelectorAll('input[type="checkbox"][data-component]');
+            const processedComponents = new Set();
 
-                    if (states) {
+            checkboxes.forEach(checkbox => {
+                const component = checkbox.getAttribute('data-component');
+                
+                if (!processedComponents.has(component)) {
+                    processedComponents.add(component);
+                    
+                    const state = JSON.parse(localStorage.getItem(component));
+
+                    if (state) {
+                        const row = checkbox.closest('tr');
                         const codingCheckbox = row.querySelector('.coding');
                         const testingCheckbox = row.querySelector('.testing');
                         const deploymentCheckbox = row.querySelector('.deployment');
+                        const statusDropdown = row.querySelector('.status-dropdown');
+                        const targetDateInput = row.querySelector('.target-date');
+                        const actualDateInput = row.querySelector('.actual-date');
 
-                        if (codingCheckbox) codingCheckbox.checked = states.coding;
-                        if (testingCheckbox) testingCheckbox.checked = states.testing;
-                        if (deploymentCheckbox) deploymentCheckbox.checked = states.deployment;
+                        // Load checkbox states in the correct order
+                        if (codingCheckbox) {
+                            codingCheckbox.checked = state.coding;
+                        }
+                        
+                        if (testingCheckbox) {
+                            testingCheckbox.disabled = !codingCheckbox.checked;
+                            testingCheckbox.checked = state.testing;
+                        }
+                        
+                        if (deploymentCheckbox) {
+                            deploymentCheckbox.disabled = !testingCheckbox.checked;
+                            deploymentCheckbox.checked = state.deployment;
+                        }
 
-                        updateCompletion(codingCheckbox, component);
+                        // Load other states
+                        if (statusDropdown && state.status) statusDropdown.value = state.status;
+                        
+                        if (targetDateInput && state.targetDate) {
+                            targetDateInput.value = isValidTargetDate(state.targetDate) 
+                                ? state.targetDate 
+                                : getTomorrowDate();
+                        }
+                        
+                        if (actualDateInput && state.actualDate) {
+                            actualDateInput.value = isValidActualDate(state.actualDate)
+                                ? state.actualDate
+                                : new Date().toISOString().split('T')[0];
+                        }
+                    } else {
+                        // Initialize new components with correct disabled states
+                        const row = checkbox.closest('tr');
+                        const testingCheckbox = row.querySelector('.testing');
+                        const deploymentCheckbox = row.querySelector('.deployment');
+                        
+                        testingCheckbox.disabled = true;
+                        deploymentCheckbox.disabled = true;
                     }
                 }
             });
@@ -189,6 +327,9 @@
             <th>Testing</th>
             <th>Deployment</th>
             <th>Completion</th>
+            <th>Status</th>
+            <th>Target Date</th>
+            <th>Actual Date</th>
         </tr>
         <tbody id="requirementsTableBody"></tbody>
     </table>
