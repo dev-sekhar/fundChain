@@ -194,12 +194,13 @@ async function loadRequirements() {
             const componentCount = req.components ? req.components.length : 0;
 
             if (componentCount > 0) {
+                // Create main row with rowspan for common columns
                 const mainRow = document.createElement('tr');
                 mainRow.innerHTML = `
-                    <td class="requirement-col">${groupIndex + 1}.${reqIndex + 1}</td>
-                    <td class="desc-col">${functionalRequirement}</td>
-                    <td class="details-col">${details}</td>
-                    <td class="layer-col">${group.title}</td>
+                    <td class="requirement-col" rowspan="${componentCount}">${groupIndex + 1}.${reqIndex + 1}</td>
+                    <td class="desc-col" rowspan="${componentCount}">${functionalRequirement}</td>
+                    <td class="details-col" rowspan="${componentCount}">${details}</td>
+                    <td class="layer-col" rowspan="${componentCount}">${group.title}</td>
                     <td class="component-col">${req.components[0]}</td>
                     <td class="checkbox-col"><input type="checkbox" class="coding" data-component="${req.components[0]}" /></td>
                     <td class="checkbox-col"><input type="checkbox" class="testing" data-component="${req.components[0]}" disabled /></td>
@@ -212,13 +213,10 @@ async function loadRequirements() {
                 tableBody.appendChild(mainRow);
                 addEventListeners(mainRow, req.components[0]);
 
+                // Create component rows without the merged columns
                 req.components.slice(1).forEach(component => {
                     const componentRow = document.createElement('tr');
                     componentRow.innerHTML = `
-                        <td class="requirement-col"></td>
-                        <td class="desc-col"></td>
-                        <td class="details-col"></td>
-                        <td class="layer-col"></td>
                         <td class="component-col">${component}</td>
                         <td class="checkbox-col"><input type="checkbox" class="coding" data-component="${component}" /></td>
                         <td class="checkbox-col"><input type="checkbox" class="testing" data-component="${component}" disabled /></td>
