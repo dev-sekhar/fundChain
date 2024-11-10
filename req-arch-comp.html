@@ -36,10 +36,6 @@
             text-align: center;
             padding: 20px;
         }
-        .group-header {
-            background-color: #e6e6e6;
-            font-weight: bold;
-        }
         .complete {
             color: #197A24;
         }
@@ -59,29 +55,26 @@
                 group.requirements.forEach((req, reqIndex) => {
                     const functionalRequirement = req.functionalRequirement || req;
                     const details = req.details ? req.details.join(', ') : '';
+                    const componentCount = req.components ? req.components.length : 0;
 
-                    const mainRow = document.createElement('tr');
-                    mainRow.innerHTML = `
-                        <td>${groupIndex + 1}.${reqIndex + 1}</td>
-                        <td>${functionalRequirement}</td>
-                        <td>${details}</td>
-                        <td>${group.title}</td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                    `;
-                    tableBody.appendChild(mainRow);
+                    if (componentCount > 0) {
+                        const mainRow = document.createElement('tr');
+                        mainRow.innerHTML = `
+                            <td rowspan="${componentCount}" class="requirement">${groupIndex + 1}.${reqIndex + 1}</td>
+                            <td rowspan="${componentCount}" class="requirement">${functionalRequirement}</td>
+                            <td rowspan="${componentCount}" class="requirement">${details}</td>
+                            <td rowspan="${componentCount}" class="architecture-layer">${group.title}</td>
+                            <td>${req.components[0]}</td>
+                            <td><input type="checkbox" class="coding" onchange="updateCompletion(this, '${req.components[0]}')" /></td>
+                            <td><input type="checkbox" class="testing" onchange="updateCompletion(this, '${req.components[0]}')" /></td>
+                            <td><input type="checkbox" class="deployment" onchange="updateCompletion(this, '${req.components[0]}')" /></td>
+                            <td class="completion incomplete">Incomplete</td>
+                        `;
+                        tableBody.appendChild(mainRow);
 
-                    if (req.components) {
-                        req.components.forEach(component => {
+                        req.components.slice(1).forEach(component => {
                             const componentRow = document.createElement('tr');
                             componentRow.innerHTML = `
-                                <td></td>
-                                <td></td>
-                                <td></td>
-                                <td>${group.title}</td>
                                 <td>${component}</td>
                                 <td><input type="checkbox" class="coding" onchange="updateCompletion(this, '${component}')" /></td>
                                 <td><input type="checkbox" class="testing" onchange="updateCompletion(this, '${component}')" /></td>
@@ -97,7 +90,7 @@
             loadCheckboxStates();
         }
 
-        function updateCompletion(checkbox, functionalRequirement) {
+        function updateCompletion(checkbox, component) {
             const row = checkbox.closest('tr');
             const codingCheckbox = row.querySelector('.coding');
             const testingCheckbox = row.querySelector('.testing');
@@ -108,31 +101,60 @@
                 completionCell.textContent = 'Complete';
                 completionCell.classList.remove('incomplete');
                 completionCell.classList.add('complete');
+                row.style.color = '#197A24';
             } else {
                 completionCell.textContent = 'Incomplete';
                 completionCell.classList.remove('complete');
                 completionCell.classList.add('incomplete');
+                row.style.color = '';
             }
 
-            saveCheckboxStates(functionalRequirement, codingCheckbox.checked, testingCheckbox.checked, deploymentCheckbox.checked);
+            saveCheckboxStates(component, codingCheckbox.checked, testingCheckbox.checked, deploymentCheckbox.checked);
+            updateArchitectureLayer(row);
         }
 
-        function saveCheckboxStates(functionalRequirement, coding, testing, deployment) {
+        function updateArchitectureLayer(componentRow) {
+            const architectureLayerCell = componentRow.querySelector('td:nth-child(4)');
+            const allComponentsComplete = Array.from(componentRow.parentNode.querySelectorAll('tr'))
+                .every(row => row.querySelector('.completion')?.textContent === 'Complete');
+
+            if (allComponentsComplete) {
+                architectureLayerCell.style.color = '#197A24';
+            } else {
+                architectureLayerCell.style.color = '';
+            }
+
+            updateRequirement(componentRow);
+        }
+
+        function updateRequirement(componentRow) {
+            const requirementCells = componentRow.parentNode.querySelectorAll('.requirement');
+            const allLayersComplete = Array.from(componentRow.parentNode.querySelectorAll('.architecture-layer'))
+                .every(cell => cell.style.color === 'rgb(25, 122, 36)');
+
+            if (allLayersComplete) {
+                requirementCells.forEach(cell => cell.style.color = '#197A24');
+            } else {
+                requirementCells.forEach(cell => cell.style.color = '');
+            }
+        }
+
+        function saveCheckboxStates(component, coding, testing, deployment) {
             const states = {
                 coding,
                 testing,
                 deployment
             };
-            localStorage.setItem(functionalRequirement, JSON.stringify(states));
+            localStorage.setItem(component, JSON.stringify(states));
         }
 
         function loadCheckboxStates() {
-            const rows = document.querySelectorAll('tr:not(.group-header)');
+            const rows = document.querySelectorAll('tr');
             rows.forEach(row => {
-                const functionalRequirementCell = row.querySelector('td:nth-child(2)');
-                if (functionalRequirementCell) {
-                    const functionalRequirement = functionalRequirementCell.textContent;
-                    const states = JSON.parse(localStorage.getItem(functionalRequirement));
+                const componentCell = row.querySelector('td:nth-child(5)');
+                if (componentCell) {
+                    const component = componentCell.textContent;
+                    const states = JSON.parse(localStorage.getItem(component));
 
                     if (states) {
                         const codingCheckbox = row.querySelector('.coding');
@@ -143,7 +165,7 @@
                         if (testingCheckbox) testingCheckbox.checked = states.testing;
                         if (deploymentCheckbox) deploymentCheckbox.checked = states.deployment;
 
-                        updateCompletion(codingCheckbox, functionalRequirement);
+                        updateCompletion(codingCheckbox, component);
                     }
                 }
             });
