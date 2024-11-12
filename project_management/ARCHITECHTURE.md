@@ -1,173 +1,210 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Requirements Tracker</title>
-    <link href="https://fonts.googleapis.com/css2?family=Arimo:wght@400;700&display=swap" rel="stylesheet">
-    <style>
-        body {
-            font-family: 'Arimo', sans-serif;
-            background-color: #f4f4f4;
-            margin: 0;
-            padding: 20px;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 20px 0;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        }
-        th, td {
-            border: 1px solid #ddd;
-            padding: 12px;
-            text-align: left;
-        }
-        th {
-            background-color: #0F0D46;
-            color: white;
-            font-weight: bold;
-        }
-        tr:nth-child(even) {
-            background-color: #f9f9f9;
-        }
-        tr:hover {
-            background-color: #f1f1f1;
-        }
-        .header {
-            text-align: center;
-            padding: 20px;
-        }
-        .complete {
-            color: #197A24;
-        }
-        .incomplete {
-            color: black;
-        }
-    </style>
-    <script>
-        async function loadRequirements() {
-            const response = await fetch('req-arch-comp.json');
-            const data = await response.json();
-            const tableBody = document.getElementById('requirementsTableBody');
+Here's a comprehensive architecture design for your consortium blockchain project:
 
-            document.getElementById('projectName').textContent = `${data.projectName}: Requirements Tracker`;
+This architecture provides:
 
-            data.steps.forEach((group, groupIndex) => {
-                group.requirements.forEach((req, reqIndex) => {
-                    const functionalRequirement = req.functionalRequirement || req;
-                    const details = req.details ? req.details.join(', ') : '';
+- Clear separation of concerns
+- Scalability
+- Security at all levels
+- Maintainability
+- Flexibility for future extensions
 
-                    const mainRow = document.createElement('tr');
-                    mainRow.innerHTML = `
-                        <td>${groupIndex + 1}.${reqIndex + 1}</td>
-                        <td>${functionalRequirement}</td>
-                        <td>${details}</td>
-                        <td>${group.title}</td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                    `;
-                    tableBody.appendChild(mainRow);
 
-                    if (req.components) {
-                        req.components.forEach(component => {
-                            const componentRow = document.createElement('tr');
-                            componentRow.innerHTML = `
-                                <td></td>
-                                <td></td>
-                                <td></td>
-                                <td>${group.title}</td>
-                                <td>${component}</td>
-                                <td><input type="checkbox" class="coding" onchange="updateCompletion(this, '${component}')" /></td>
-                                <td><input type="checkbox" class="testing" onchange="updateCompletion(this, '${component}')" /></td>
-                                <td><input type="checkbox" class="deployment" onchange="updateCompletion(this, '${component}')" /></td>
-                                <td class="completion incomplete">Incomplete</td>
-                            `;
-                            tableBody.appendChild(componentRow);
-                        });
-                    }
-                });
-            });
+**1. Core Blockchain Layer**
 
-            loadCheckboxStates();
-        }
+- Handles core blockchain operations and consensus
+- Components:
+  - Block Manager
+  - Transaction Manager
+  - Consensus Engine (Custom consensus based on reviews, votes, and funding commitments)
+  - P2P Network Manager
+  - State Manager
+  - Storage Engine
+  - Cryptography Module
 
-        function updateCompletion(checkbox, component) {
-            const row = checkbox.closest('tr');
-            const codingCheckbox = row.querySelector('.coding');
-            const testingCheckbox = row.querySelector('.testing');
-            const deploymentCheckbox = row.querySelector('.deployment');
-            const completionCell = row.querySelector('.completion');
+Maps to requirements:
 
-            if (codingCheckbox.checked && testingCheckbox.checked && deploymentCheckbox.checked) {
-                completionCell.textContent = 'Complete';
-                completionCell.classList.remove('incomplete');
-                completionCell.classList.add('complete');
-            } else {
-                completionCell.textContent = 'Incomplete';
-                completionCell.classList.remove('complete');
-                completionCell.classList.add('incomplete');
-            }
+- Custom blockchain platform development
+- Transaction management
+- Custom consensus mechanism
+- Network protocol implementation
+- State and storage management
 
-            saveCheckboxStates(component, codingCheckbox.checked, testingCheckbox.checked, deploymentCheckbox.checked);
-        }
+**2. Smart Contract Layer**
 
-        function saveCheckboxStates(component, coding, testing, deployment) {
-            const states = {
-                coding,
-                testing,
-                deployment
-            };
-            localStorage.setItem(component, JSON.stringify(states));
-        }
+- Business logic implementation
+- Components:
+  - Project Contract Manager
+  - Voting Contract Manager
+  - Fund Distribution Contract Manager
+  - Member Management Contract Manager
+  - Access Control Contract Manager
 
-        function loadCheckboxStates() {
-            const rows = document.querySelectorAll('tr');
-            rows.forEach(row => {
-                const componentCell = row.querySelector('td:nth-child(5)');
-                if (componentCell) {
-                    const component = componentCell.textContent;
-                    const states = JSON.parse(localStorage.getItem(component));
+Maps to requirements:
 
-                    if (states) {
-                        const codingCheckbox = row.querySelector('.coding');
-                        const testingCheckbox = row.querySelector('.testing');
-                        const deploymentCheckbox = row.querySelector('.deployment');
+- Smart contract development
+- Core features implementation
+- Member admission/removal logic
+- Voting mechanisms
+- Fund distribution
 
-                        if (codingCheckbox) codingCheckbox.checked = states.coding;
-                        if (testingCheckbox) testingCheckbox.checked = states.testing;
-                        if (deploymentCheckbox) deploymentCheckbox.checked = states.deployment;
+**3. API Gateway Layer**
 
-                        updateCompletion(codingCheckbox, component);
-                    }
-                }
-            });
-        }
+- Interface for external communication
+- Components:
+  - REST API Service
+  - WebSocket Service
+  - RPC Service
+  - Authentication Service
+  - Rate Limiting Service
 
-        window.onload = loadRequirements;
-    </script>
-</head>
-<body>
-    <div class="header">
-        <h1 id="projectName">Requirements Tracker</h1>
-    </div>
-    <table>
-        <tr>
-            <th>ID</th>
-            <th>Functional Requirement</th>
-            <th>Details</th>
-            <th>Architecture Layer</th>
-            <th>Component</th>
-            <th>Coding</th>
-            <th>Testing</th>
-            <th>Deployment</th>
-            <th>Completion</th>
-        </tr>
-        <tbody id="requirementsTableBody"></tbody>
-    </table>
-</body>
-</html>
+Maps to requirements:
 
+- Integration components
+- External system interactions
+- Real-time updates
+- API access control
+
+**4. Application Services Layer**
+
+- Business logic and application services
+- Components:
+  - Project Management Service
+  - Member Management Service
+  - Voting Service
+  - Fund Management Service
+  - Notification Service
+  - Analytics Service
+  - Document Management Service
+
+Maps to requirements:
+
+- Core features implementation
+- Member management
+- Project lifecycle management
+- Fund distribution
+- Reporting and analytics
+
+**5. Security Layer**
+
+- Security implementation across all layers
+- Components:
+  - Identity and Access Management
+  - Encryption Service
+  - Key Management Service
+  - Audit Logging Service
+  - Security Monitoring Service
+  - 2FA Service
+
+Maps to requirements:
+
+- Security measures
+- Access control
+- Audit trails
+- Member authentication
+
+**6. Data Layer**
+
+- Data storage and management
+- Components:
+  - Blockchain Data Store
+  - Off-chain Database
+  - Document Store
+  - Cache Layer
+  - Data Backup Service
+
+Maps to requirements:
+
+- Data structure design
+- Storage requirements
+- Document management
+- Data persistence
+
+**7. User Interface Layer**
+
+- Frontend applications
+- Components:
+  - Public Portal
+  - Member Dashboard
+  - Admin Dashboard
+  - Analytics Dashboard
+  - Mobile Interface
+
+Maps to requirements:
+
+- UI development
+- User interaction
+- Responsive design
+- Dashboard requirements
+
+**8. Integration Layer**
+
+- External system integration
+- Components:
+  - External API Integration Service
+  - Event Bus
+  - Message Queue
+  - Webhook Service
+  - Integration Adapters
+
+Maps to requirements:
+
+- Integration components
+- External system communication
+- Event handling
+
+**9. Monitoring and Management Layer**
+
+- System monitoring and management
+- Components:
+  - Node Monitor
+  - Network Monitor
+  - Performance Monitor
+  - Alert Manager
+  - Logging Service
+  - Analytics Engine
+
+Maps to requirements:
+
+- Maintenance and support
+- System monitoring
+- Performance tracking
+
+**10. Governance Layer**
+
+- Consortium governance implementation
+- Components:
+  - Member Admission Service
+  - Rule Enforcement Service
+  - Voting Management Service
+  - Dispute Resolution Service
+  - Policy Management Service
+
+Maps to requirements:
+
+- Governance structure
+- Member admission/removal
+- Rule enforcement
+- Voting management
+
+**Cross-Cutting Concerns**:
+
+1. Security & Privacy
+2. Scalability
+3. Performance
+4. Availability
+5. Compliance
+6. Documentation
+
+**Communication Flow**:
+
+1. User requests flow through UI Layer
+2. Requests authenticated by Security Layer
+3. API Gateway routes requests
+4. Application Services process business logic
+5. Smart Contract Layer handles blockchain operations
+6. Core Blockchain Layer maintains consensus and state
+7. Data Layer handles persistence
+8. Monitoring Layer tracks all operations
+9. Governance Layer ensures compliance
 
 
